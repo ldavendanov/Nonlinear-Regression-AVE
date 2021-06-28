@@ -2,7 +2,7 @@ function [yhat,varY] = gpr_predict(x,X,Y,theta,Method,indices)
 
 %-- Checking input
 [n,N] = size(X);
-[~,Nt] = size(x);
+M = size(x,2);
 
 switch nargin
     case 3
@@ -20,6 +20,9 @@ switch nargin
         Method = 'full';
         indices = true(1,N);
         
+    case 5
+        indices = SparseResampling(X,50);
+        
 end
 
 %-- Parameters of the GPR
@@ -27,10 +30,6 @@ scale = theta(3:end);                                                       % Le
 sigmaF2 = theta(2);                                                         % Kernel variance
 sigmaU2 = theta(1);                                                         % Noise variance
 m = sum(indices);
-
-%-- Initializing computation matrices
-yhat = zeros(1,Nt);
-varY = zeros(1,Nt);
 
 switch Method
     case 'full'             % Full covariance matrix
@@ -43,15 +42,18 @@ switch Method
         L = chol(Ky,'lower');
         alpha = L'\(L\Y(:));
         
-        for i=1:Nt
-            %-- Construct the kernel on the evaluation set
-            K_ast = sigmaF2*sqexp_kern( x(:,i), X, scale );
-            k_ast = sigmaF2*sqexp_kern( x(:,i), x(:,i), scale );
+        %-- Calculate the predictions and predictive variance
+        yhat = zeros(1,M);
+        varY = zeros(1,M);
+        for j=1:M
+            K_ast = sigmaF2*sqexp_kern( x(:,j), X, scale );
+            k_ast = sigmaF2*sqexp_kern( x(:,j), x(:,j), scale );
             
-            %-- Calculate the predictions and predictive variance
-            yhat(i) = K_ast * alpha;
-            V = L\K_ast';
-            varY(i) = diag( k_ast - V'*V );
+            yhat(j) = K_ast * alpha;
+            if nargout == 2
+                V = L\K_ast';
+                varY(j) = k_ast - V'*V;
+            end
         end
         
     case {'SoR','PP'}              % Subset of Regressors and Projected Process
@@ -60,57 +62,40 @@ switch Method
         Xm = X(:,indices);                                                  % Inducing inputs
         X = [Xm X(:,~indices)];                                             % Remaining inputs
         Y = [Y(indices) Y(~indices)];
-        Knm = sigmaF2*sqexp_kern( X, Xm, scale );                           % Kernel - no-noise
-                
-        % Calculate the covariance inverse approximation
-        V = chol(Knm(1:m,:),'lower');                                       % Cholesky factor of the inducing input covariance
-        A = [Knm; sqrt(sigmaU2)*V'];
-        [Q,R] = qr(A);
-        alpha = R \ Q(1:N,:)'*Y(:);
-        Rinv = pinv(R);
+        Kmn = sigmaF2*sqexp_kern( Xm, X, scale );                           % Kernel - no-noise
+        Kmast = sigmaF2*sqexp_kern( Xm, x, scale );
         
-        for i=1:Nt
-            
-            %-- Constructing the kernel in the evaluation set
-            Kmast = sigmaF2*sqexp_kern( x(:,i), Xm, scale );
-            
-            %-- Calculate the predictions and predictive variance
-            yhat(i) = Kmast * alpha;
-            Beta = Kmast * Rinv;
-            varY(i) = sigmaU2*diag( Beta*Beta' );
-            
-            if strcmp(Method,'PP')
+        % Calculate the covariance inverse approximation
+        [Lmm,~] = chol( sigmaU2*Kmn(:,1:m) + Kmn*Kmn', 'lower' );
+        alpha = Lmm'\(Lmm\Kmn)*Y(:);
+        
+        %-- Calculate the predictions and predictive variance
+        yhat = Kmast' * alpha;
+        C = Lmm\Kmast;
+        varY = sigmaU2*diag(C'*C);
+        
+        if strcmp(Method,'PP')
+            for i=1:size(x,2)
                 k_ast = sigmaF2*sqexp_kern( x(:,i), x(:,i), scale );
-                Gamma = Kmast / V;
-                S = diag( k_ast - Gamma*Gamma' );
+                S = k_ast - Kmast(:,i)'*(Kmn(:,1:m)\Kmast(:,i));
                 varY(i) = varY(i) + S;
             end
-            
         end
         
     case 'SoD'      % Subset of Datapoints
         
         % Calculate the covariance inverse approximation
-        Xm = X(:,indices);
-        Kmm = sigmaF2*sqexp_kern( Xm, Xm, scale );                          % Kernel - no-noise
-                
+        Kmm = sigmaF2*sqexp_kern( X(:,indices), X(:,indices), scale );        % Kernel - no-noise
+        K_ast = sigmaF2*sqexp_kern( x, X(:,indices), scale );
+        k_ast = sigmaF2*sqexp_kern( x, x, scale );
+        
         Ky = Kmm + sigmaU2*eye(m);                                          % Kernel plus noise
         L = chol(Ky,'lower');
         alpha = L'\(L\Y(indices)');
         
-        parfor i=1:Nt
-            
-            fprintf('Running case No. %5d of %5d\n',i,Nt)
-            
-            %-- Construct the kernel in the evaluation set
-            K_ast = sigmaF2*sqexp_kern( x(:,i), Xm, scale );
-            k_ast = sigmaF2*sqexp_kern( x(:,i), x(:,i), scale );
-            
-            %-- Calculate the predictions and predictive variance
-            yhat(i) = K_ast * alpha;
-            V = L\K_ast';
-            varY(i) = diag( k_ast - V'*V );
-            
-        end
-        
+        %-- Calculate the predictions and predictive variance
+        yhat = K_ast * alpha;
+        V = L\K_ast';
+        varY = diag( k_ast - V'*V );
+
 end

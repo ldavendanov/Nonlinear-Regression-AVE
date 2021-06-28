@@ -1,8 +1,11 @@
 function [hyperpar,lnL] = optimize_gpr( X, Y, theta0, Method, indices )
 
-if nargin < 4
-    Method = 'full';
-    indices = [];
+switch nargin
+    case 3
+        Method = 'full';
+        indices = [];
+    case 4
+        indices = SparseResampling(X,10);
 end
 
 n = size(X,1);
@@ -18,12 +21,9 @@ end
 
 problem.options = optimoptions('fmincon');
 problem.options.Display = 'iter';
-% problem.options.PlotFcns = @optimplotfval;
-% problem.options.CheckGradients = true;
+problem.options.PlotFcns = @optimplotfval;
 problem.options.UseParallel = true;
-if strcmp(Method,'SoR') || strcmp(Method,'PPvar')
-    problem.options.SpecifyObjectiveGradient = false;
-else
+if strcmp(Method,'full')
     problem.options.SpecifyObjectiveGradient = true;
 end
 

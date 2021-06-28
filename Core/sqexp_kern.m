@@ -13,8 +13,8 @@ if numel(l) == 1
     end
 elseif numel(l) == n
     for i=1:m2
-        d = x - repmat(x0(:,i),1,m1);
-        r = diag( d'*diag(l)*d );
+        d = diag(sqrt(l))*( x - repmat(x0(:,i),1,m1) );
+        r = diag( d'*d );
         k(:,i) = exp( -r/2 );
     end
 end

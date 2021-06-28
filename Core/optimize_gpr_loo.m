@@ -13,7 +13,7 @@ end
 
 problem.options = optimoptions('fmincon');
 problem.options.Display = 'iter';
-% problem.options.PlotFcns = @optimplotfval;
+problem.options.PlotFcns = @optimplotfval;
 problem.options.UseParallel = true;
 % problem.options.CheckGradients = true;
 problem.options.SpecifyObjectiveGradient = true;

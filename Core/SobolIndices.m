@@ -48,8 +48,8 @@ if n==1
         dim_indx(i) = true;
         ind = alpha(:,dim_indx) > 0;
         ind2 = all( alpha(:,~dim_indx) == 0, 2 );
-        ST(i) = sum( W(ind).^2.*L(ind) ) / sum( W(2:end).^2.*L(2:end) );
-        S1(i) = sum( W(ind&ind2).^2.*L(ind&ind2) ) / sum( W(2:end).^2.*L(2:end) );
+        ST(m-i+1) = sum( W(ind).^2.*L(ind) ) / sum( W(2:end).^2.*L(2:end) );
+        S1(m-i+1) = sum( W(ind&ind2).^2.*L(ind&ind2) ) / sum( W(2:end).^2.*L(2:end) );
     end
     
 else
@@ -61,8 +61,8 @@ else
         dim_indx(i) = true;
         ind = alpha(:,dim_indx) > 0;
         ind2 = all( alpha(:,~dim_indx) == 0, 2 );
-        ST(i) = sum( dot( W(:,ind), W(:,ind) ).*L(ind) ) / sum( dot( W(:,2:end), W(:,2:end) ) .*L(2:end) );
-        S1(i) = sum( dot( W(:,ind&ind2), W(:,ind&ind2) ).*L(ind&ind2) ) /...
+        ST(m-i+1) = sum( dot( W(:,ind), W(:,ind) ).*L(ind) ) / sum( dot( W(:,2:end), W(:,2:end) ) .*L(2:end) );
+        S1(m-i+1) = sum( dot( W(:,ind&ind2), W(:,ind&ind2) ).*L(ind&ind2) ) /...
             sum( dot( W(:,2:end), W(:,2:end) ).*L(2:end) );
     end
     

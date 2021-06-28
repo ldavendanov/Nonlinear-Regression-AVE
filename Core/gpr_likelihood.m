@@ -38,8 +38,8 @@ switch Method
         L = chol(Ky,'lower');
         alpha = L'\(L\Y(:));
         
-        %-- Calculate the marginal likelihood
-        lnL = ( 0.5*( Y(:)'*alpha ) + trace( log(L) ) )/N;
+        %-- Calculate the negative log marginal likelihood
+        lnL = 0.5*( Y(:)'*alpha ) + trace( log(L) );
         
     case {'SoR','PP'}      % Subset of Regressors and Projected process
         
@@ -48,21 +48,22 @@ switch Method
         X = [Xm X(:,~indices)];                                             % All inputs - sorted
         Ym = Y(indices);
         Y = [Ym Y(~indices)];                                               % All outputs - sorted
-        Knm = sigmaF2*sqexp_kern( X, Xm, scale );                           % Kernel: inducing inputs - all inputs
+        Kmn = sigmaF2*sqexp_kern( Xm, X, scale );                           % Kernel: inducing inputs - all inputs
         
-        %-- Calculate the marginal likelihood
-        [V,flag] = chol(Knm(1:m,:),'lower');                                % Cholesky factor of the inducing input covariance
-        
-        if flag == 0
-            A = [Knm; sqrt(sigmaU2)*V'];
-            [~,R] = qr(A);
-            B = Knm / R;
-            C = ( eye(N) - B*B' ) / sigmaU2;
-            alpha = C*Y(:);
-            lnL = ( 0.5*( Y(:)'*alpha ) - 0.5*log(det(C)) )/N;
+        % Calculate the covariance inverse approximation
+        [Lmm,flag] = chol( Kmn(:,1:m), 'lower' );
+        if ~flag
+            C = Lmm\Kmn;
+            A = chol( C*C' + sigmaU2*eye(m), 'lower' )\C;
+            B = ( eye(N) - A'*A )/sigmaU2;
+            alpha = B*Y(:);
+            
+            %-- Calculate the negative log marginal likelihood
+            lnL = 0.5*( Y(:)'*alpha ) + 0.5*log( det(eye(m)+(C*C'/sigmaU2)) ) + N*0.5*log(sigmaU2);
         else
-            lnL = NaN;
+            lnL = Inf;
         end
+        
         
     case {'PPvar'}      % Subset of Regressors and Projected process
         
@@ -73,28 +74,28 @@ switch Method
         Y = [Ym Y(~indices)];                                               % All outputs - sorted
         
         %-- Constructing the kernel of the training set
-        Knm = sigmaF2*sqexp_kern( Xm, X, scale );                           % Kernel: inducing inputs - all inputs
+        Kmn = sigmaF2*sqexp_kern( Xm, X, scale );                           % Kernel: inducing inputs - all inputs
         Knn = sigmaF2*sqexp_kern( X, X, scale );                            % Kernel: all inputs
         
         %-- Calculate the covariance approximation
-        [U,S,V] = svd(Knm(:,1:m));
+        [U,S,V] = svd(Kmn(:,1:m));
         sigma = diag(S);
         ind = sigma >= 1e-20*max(sigma);
         Z = diag(1./sigma(ind));
-        R = V(:,ind)*Z*U(:,ind)'*Knm;
-        K = Knm'*R;
+        R = V(:,ind)*Z*U(:,ind)'*Kmn;
+        K = Kmn'*R;
         
         %-- Calculate the covariance inverse approximation
-        A = sigmaU2*Knm(:,1:m) + Knm*Knm';        
+        A = sigmaU2*Kmn(:,1:m) + Kmn*Kmn';        
         [U,S,V] = svd(A);
         sigma = diag(S);
         ind = sigma >= 1e-20*max(sigma);
         Z = diag(1./sigma(ind));
-        B = ( eye(N) - Knm'*V(:,ind)*Z*U(:,ind)'*Knm )/sigmaU2;
+        B = ( eye(N) - Kmn'*V(:,ind)*Z*U(:,ind)'*Kmn )/sigmaU2;
         alpha = B*Y(:);
         
         %-- Calculate the marginal likelihood
-        lnL = ( 0.5*( Y(:)'*alpha ) - 0.5*log(det(B)) + 0.5*trace( Knn - K )/sigmaU2 )/N;
+        lnL = 0.5*( Y(:)'*alpha ) - 0.5*log(det(B)) + 0.5*trace( Knn - K )/sigmaU2;
         
     case 'SoD'      % Subset of Datapoints
         
@@ -105,7 +106,7 @@ switch Method
         alpha = L'\(L\Y(indices)');
         
         %-- Calculate the marginal likelihood
-        lnL = ( 0.5*( Y(indices)*alpha ) + trace( log(L) ) )/N;
+        lnL = 0.5*( Y(indices)*alpha ) + trace( log(L) );
 
 end
     
@@ -125,24 +126,24 @@ if nargout == 2
             for i=1:n+2
                 M1 = (alpha*alpha')*D(:,:,i);
                 M2 = L'\(L\D(:,:,i));
-                dL_dTh(i) = -0.5*trace( M1 - M2 )/N;
+                dL_dTh(i) = -0.5*trace( M1 - M2 );
             end
             
         case {'SoR','PP'}
 
-            [U,S,V] = svd(Knm(1:m,:));
+            [U,S,V] = svd(Kmn(:,1:m));
             sigma = diag(S);
-            ind = sigma >= 1e-20*max(sigma);
+            ind = sigma >= 1e-15*max(sigma);
             Z = diag(1./sigma(ind));
-            R = V(:,ind)*Z*U(:,ind)'*Knm';
-            K = Knm*R;
+            R = V(:,ind)*Z*U(:,ind)'*Kmn;
+            K = Kmn'*R;
             
             %-- Matrix of partial derivatives of the kernel wrt the hyperparameters
             D = zeros(N,N,n+2);
             D(:,:,1) = eye(N);
             D(:,:,2) = K/sigmaF2;
             for i=1:n
-                Delta = -0.5*( X(i,:) - Xm(i,:)' ).^2.*Knm';
+                Delta = -0.5*( X(i,:) - Xm(i,:)' ).^2.*Kmn;
                 B1 = R;
                 C1 = Delta'*B1;
                 C2 = -B1'*Delta(:,1:m)*B1;
@@ -153,7 +154,7 @@ if nargout == 2
             for i=1:n+2
                 M1 = (alpha*alpha')*D(:,:,i);
                 M2 = B*D(:,:,i);
-                dL_dTh(i) = -0.5*trace( M1 - M2 )/N;
+                dL_dTh(i) = -0.5*trace( M1 - M2 );
             end
             
         case 'SoD'
@@ -170,7 +171,7 @@ if nargout == 2
             for i=1:n+2
                 M1 = (alpha*alpha')*D(:,:,i);
                 M2 = L'\(L\D(:,:,i));
-                dL_dTh(i) = -0.5*trace( M1 - M2 )/N;
+                dL_dTh(i) = -0.5*trace( M1 - M2 );
             end
              
     end
