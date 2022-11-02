@@ -32,6 +32,6 @@ if nargout == 2
         Sigma_pred(:,:,i) = ( 1 + D(:,i)'*D(:,i) )*SigmaE;
     end
     if n==1
-        Sigma_pred = squeeze(Sigma_pred);
+        Sigma_pred = squeeze(Sigma_pred)';
     end
 end

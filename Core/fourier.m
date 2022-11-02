@@ -3,10 +3,10 @@ function f = fourier(x,n)
 % sines/cosines of the variable 'x' normalized in the interval [-1 1]
 
 N = length(x);
-f = zeros(n,N);
+f = zeros(N,n);
 
-f(1,:) = 1;
+f(:,1) = 1;
 for i=1:(n-1)/2
-    f(2*i,:) = sin(i*2*pi*x);
-    f(2*i+1,:) = cos(i*2*pi*x);
+    f(:,2*i) = sin(i*2*pi*x);
+    f(:,2*i+1) = cos(i*2*pi*x);
 end

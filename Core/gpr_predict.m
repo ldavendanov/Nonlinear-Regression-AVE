@@ -86,16 +86,23 @@ switch Method
         
         % Calculate the covariance inverse approximation
         Kmm = sigmaF2*sqexp_kern( X(:,indices), X(:,indices), scale );        % Kernel - no-noise
-        K_ast = sigmaF2*sqexp_kern( x, X(:,indices), scale );
-        k_ast = sigmaF2*sqexp_kern( x, x, scale );
         
         Ky = Kmm + sigmaU2*eye(m);                                          % Kernel plus noise
         L = chol(Ky,'lower');
         alpha = L'\(L\Y(indices)');
         
         %-- Calculate the predictions and predictive variance
-        yhat = K_ast * alpha;
-        V = L\K_ast';
-        varY = diag( k_ast - V'*V );
+        yhat = zeros(1,M);
+        varY = zeros(1,M);
+        for j=1:M
+            K_ast = sigmaF2*sqexp_kern( x(:,j), X(:,indices), scale );
+            k_ast = sigmaF2*sqexp_kern( x(:,j), x(:,j), scale );
+            
+            yhat(j) = K_ast * alpha;
+            if nargout == 2
+                V = L\K_ast';
+                varY(j) = k_ast - V'*V;
+            end
+        end
 
 end

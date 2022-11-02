@@ -89,7 +89,7 @@ Method3 = 'PP';
 figure('Position',[100 100 1200 900])
 for k=1:4
     
-    YY = [yh{k} + 3*sqrt(varY{k}); flip(yh{k} - 3*sqrt(varY{k}))];
+    YY = [yh{k}(:) + 3*sqrt(varY{k}(:)); flipud(yh{k}(:) - 3*sqrt(varY{k}(:)))];
     XX = [X_test flip(X_test)]/pi;
     
     subplot(2,2,k)

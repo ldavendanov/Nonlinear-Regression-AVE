@@ -4,7 +4,7 @@ clc
 
 addpath('..\Core\')
 
-%% Producing simulations of the sinc function
+%% Producing simulations of the 2D sinc function
 
 omega = 2*pi;
 sigmaW2 = 1e-4;
