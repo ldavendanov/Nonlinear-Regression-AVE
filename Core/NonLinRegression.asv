@@ -65,6 +65,7 @@ switch method
 end
 h = diag(H);
 criteria.MSEloo = (1/n)*sum( (err./(1-h)).^2 );                             % Leave-One-Out MSE
+criteria.R2loo = 1 - criteria.RSS./TSS;                                        % Coefficient of determination (R-squared)
 
 % Calculate statistics on the parameter estimates
 Lambda = zeros(p,p,l);

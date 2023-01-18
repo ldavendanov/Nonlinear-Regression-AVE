@@ -78,11 +78,6 @@ grid on
 close all
 clc
 
-% x_ast = linspace(-1,1,50)';
-% [X1_ast,X2_ast,X3_ast] = ndgrid(x_ast);
-% 
-% X_ast = [X1_ast(:) X2_ast(:) X3_ast(:)];
-
 pa = 5;
 basis_props.max_order = pa*[1 1 1];
 basis_props.basis_indices = true(prod(basis_props.max_order),1);

@@ -34,9 +34,8 @@ end
 Phi = Phi(:,ba);
 
 y_hat = Phi*beta;
-se_y = zeros(size(y_hat));
 for i=1:l
-    delta2 = diag( Phi*SigmaBeta(:,:,i)*Phi' );
-    sigmaY2 = sigmaW2(i)*( delta2+1 );
-    se_y(:,i) = sqrt(sigmaY2);
+    delta2 = diag( Phi*SigmaBeta*Phi' );
+    sigmaY2 = sigmaW2*( delta2+1 );
+    se_y = sqrt(sigmaY2);
 end
